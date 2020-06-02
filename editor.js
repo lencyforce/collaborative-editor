@@ -8,14 +8,13 @@ import Composition from "./composition";
 import shareDB from "sharedb/lib/client";
 import richText from "rich-text";
 import lodashObject from "lodash/fp/object";
-import Keyboard from "quill/modules/keyboard";
 
 import QuillImageDropAndPaste from "quill-image-drop-and-paste";
 import ImagePlaceholder from "./blot/image-placeholder";
 import Synchronizer from "./synchronizer";
 import History from "./modules/history";
 import MiksClipboard from "./modules/miks-clipboard";
-import List, {EmbeddableListItem, ListItem} from "./formats/list";
+import List, {EmbedList, ListItem} from "./formats/list";
 
 shareDB.types.register(richText.type);
 
@@ -24,7 +23,7 @@ Quill.register(ImagePlaceholder);
 Quill.register("modules/history", History);
 Quill.register("modules/clipboard", MiksClipboard);
 Quill.register("formats/list", List);
-Quill.register("formats/list/embeddable-item", EmbeddableListItem);
+Quill.register("formats/list/embed-list", EmbedList);
 Quill.register("formats/list/item", ListItem);
 
 // For icons of header value 3

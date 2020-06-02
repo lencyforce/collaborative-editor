@@ -13,17 +13,19 @@ class ListItem extends Block {
             this.replaceWith(Parchment.create(this.statics.scope));
         } else if (name === 'indent') {
             if(value === '+1') {
-
                 // Create an embed list
+                let level = 1;
 
-                let embedList = Parchment.create(EmbeddableListItem.blotName);
-                let embedListItem = Parchment.create(ListItem.blotName);
-                embedList.insertBefore(embedListItem);
+                if(this.parent.statics.blotName === EmbedList.blotName) {
+                    // Not first level
+                    let formats = this.parent.formats();
+                    level = formats.level + 1;
+                }
 
-                console.log(embedList.children);
-
+                let listType = this.parent.domNode.tagName === 'UL' ? 'unordered' : 'ordered';
+                let embedList = this.replaceWith(EmbedList.blotName, {'type': listType, 'level': level});
+                let embedListItem = embedList.children;
                 this.moveChildren(embedListItem);
-                this.replaceWith(embedList);
 
             } else if(value === '-1') {
 
@@ -42,13 +44,20 @@ class ListItem extends Block {
     }
 
     replaceWith(name, value) {
-        this.parent.isolate(this.offset(this.parent), this.length());
-        if (name === this.parent.statics.blotName) {
-            this.parent.replaceWith(name, value);
-            return this;
-        } else {
-            this.parent.unwrap();
+
+        if(name === EmbedList.blotName) {
+
             return super.replaceWith(name, value);
+
+        } else {
+            this.parent.isolate(this.offset(this.parent), this.length());
+            if (name === this.parent.statics.blotName) {
+                this.parent.replaceWith(name, value);
+                return this;
+            } else {
+                this.parent.unwrap();
+                return super.replaceWith(name, value);
+            }
         }
     }
 }
@@ -56,18 +65,19 @@ ListItem.blotName = 'list-item';
 ListItem.className = 'list-item';
 ListItem.tagName = 'LI';
 
-class EmbeddableListItem extends Container {
+class EmbedList extends Container {
     static create(value) {
-        let tagName = value === 'ordered' ? 'OL' : 'UL';
+        let tagName = value.type === 'ordered' ? 'OL' : 'UL';
         let node = super.create(tagName);
+        node.setAttribute('data-level', value.level);
         return node;
     }
 
     static formats(domNode) {
-
-        console.log(domNode);
-
-        return undefined;
+        return {
+            type: domNode.tagName === 'OL' ? 'ordered' : 'unordered',
+            level: domNode.getAttribute('data-level')
+        };
     }
 
     constructor(domNode) {
@@ -95,12 +105,12 @@ class EmbeddableListItem extends Container {
     }
 }
 
-EmbeddableListItem.blotName = 'embeddable-list-item';
-EmbeddableListItem.className = 'embeddable-list-item';
-EmbeddableListItem.tagName = ['OL', 'UL'];
-EmbeddableListItem.defaultChild = 'list-item';
-EmbeddableListItem.allowedChildren = [ListItem];
-EmbeddableListItem.scope = Parchment.Scope.BLOCK_BLOT;
+EmbedList.blotName = 'embed-list';
+EmbedList.className = 'embed-list';
+EmbedList.tagName = ['OL', 'UL'];
+EmbedList.defaultChild = 'list-item';
+EmbedList.allowedChildren = [ListItem];
+EmbedList.scope = Parchment.Scope.BLOCK_BLOT;
 
 class List extends Container {
     static create(value) {
@@ -153,7 +163,7 @@ class List extends Container {
     }
 
     insertBefore(blot, ref) {
-        if (blot instanceof ListItem || blot instanceof EmbeddableListItem) {
+        if (blot instanceof ListItem || blot instanceof EmbedList) {
             super.insertBefore(blot, ref);
         } else {
             let index = ref == null ? this.length() : ref.offset(this);
@@ -189,6 +199,6 @@ List.className = 'list';
 List.scope = Parchment.Scope.BLOCK_BLOT;
 List.tagName = ['OL', 'UL'];
 List.defaultChild = 'list-item';
-List.allowedChildren = [EmbeddableListItem, ListItem];
+List.allowedChildren = [EmbedList, ListItem];
 
-export { EmbeddableListItem, ListItem, List as default };
+export { EmbedList, ListItem, List as default };
