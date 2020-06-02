@@ -9,9 +9,25 @@ class ListItem extends Block {
     }
 
     format(name, value) {
-        if (name === List.blotName && !value) {
-            this.replaceWith(Parchment.create(this.statics.scope));
+        if (name === List.blotName) {
+
+            if(!value) {
+                // Remove a list
+                this.replaceWith(Parchment.create(this.statics.scope));
+            } else {
+
+                if (this.parent.statics.blotName === EmbedList.blotName) {
+                    // Create a list
+                    // Embed list is created first, so we wrap it with another list
+                    let embedList = this.parent;
+                    embedList.wrap(List.blotName, value);
+                } else {
+                    super.format(name, value);
+                }
+            }
+
         } else if (name === 'indent') {
+
             if(value === '+1') {
                 // Create an embed list
                 let level = 1;
@@ -19,16 +35,16 @@ class ListItem extends Block {
                 if(this.parent.statics.blotName === EmbedList.blotName) {
                     // Not first level
                     let formats = this.parent.formats();
-                    level = formats.level + 1;
+                    level = parseInt(formats[EmbedList.blotName].level) + 1;
                 }
 
                 let listType = this.parent.domNode.tagName === 'UL' ? 'unordered' : 'ordered';
                 let embedList = this.replaceWith(EmbedList.blotName, {'type': listType, 'level': level});
-                let embedListItem = embedList.children;
+                let embedListItem = embedList.children.head;
                 this.moveChildren(embedListItem);
 
             } else if(value === '-1') {
-
+                // Remove an embed list
             }
         } else {
             super.format(name, value);
@@ -80,10 +96,6 @@ class EmbedList extends Container {
         };
     }
 
-    constructor(domNode) {
-        super(domNode);
-    }
-
     format(name, value) {
         if (this.children.length > 0) {
             this.children.tail.format(name, value);
@@ -103,13 +115,25 @@ class EmbedList extends Container {
         }
         super.replace(target);
     }
+
+    optimize(context) {
+        super.optimize(context);
+        let next = this.next;
+        if (next != null && next.prev === this &&
+            next.statics.className === this.statics.className &&
+            next.statics.blotName === this.statics.blotName &&
+            next.domNode.tagName === this.domNode.tagName) {
+            next.moveChildren(this);
+            next.remove();
+        }
+    }
 }
 
 EmbedList.blotName = 'embed-list';
 EmbedList.className = 'embed-list';
 EmbedList.tagName = ['OL', 'UL'];
 EmbedList.defaultChild = 'list-item';
-EmbedList.allowedChildren = [ListItem];
+EmbedList.allowedChildren = [EmbedList, ListItem];
 EmbedList.scope = Parchment.Scope.BLOCK_BLOT;
 
 class List extends Container {
@@ -177,6 +201,7 @@ class List extends Container {
         let next = this.next;
         if (next != null && next.prev === this &&
             next.statics.blotName === this.statics.blotName &&
+            next.statics.className === this.statics.className &&
             next.domNode.tagName === this.domNode.tagName &&
             next.domNode.getAttribute('data-checked') === this.domNode.getAttribute('data-checked')) {
             next.moveChildren(this);
